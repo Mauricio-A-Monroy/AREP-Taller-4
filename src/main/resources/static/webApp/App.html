@@ -1,0 +1,108 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Aplicación REST</title>
+    <link rel="stylesheet" href="AppStyles.css">
+</head>
+<body>
+<div class="container">
+    <h1>Gestión de Lista con Servicios REST</h1>
+    <table id="data-table">
+        <thead>
+        <tr>
+            <th>ID</th>
+            <th>Nombre</th>
+            <th>Acciones</th>
+        </tr>
+        </thead>
+        <tbody>
+        <td>1</td>
+        <td>Mauricio</td>
+        <td>
+            <button onclick="editItem(${item.id})">Editar</button>
+            <button onclick="deleteItem(${item.id})">Eliminar</button>
+        </td>
+        <!-- Las filas se generarán dinámicamente aquí -->
+        </tbody>
+    </table>
+    <div class="form-container">
+        <input type="text" id="postname" name="name" placeholder="Ingrese un nombre"><br><br>
+        <input type="button" value="Enviar" onclick="addItem()">
+    </div>
+</div>
+
+<script>
+    // Cargar la tabla al iniciar la página
+    window.onload = fetchItems;
+
+    // Función para obtener todos los elementos (GET)
+    function fetchItems() {
+        let url = "/app/rest-service";
+        fetch(url)
+            .then(response => response.json())
+            .then(data => {
+                const tableBody = document.getElementById("data-table").querySelector("tbody");
+                tableBody.innerHTML = ""; // Limpiar la tabla
+
+                // Acceder a data.names
+                (data.names || []).forEach(item => {
+                    const row = document.createElement("tr");
+                    row.innerHTML = `
+                        <td>${item.id}</td>
+                        <td>${item.name !== "null" ? item.name : "No Name"}</td>
+                        <td>
+                            <button onclick="editItem(${item.id})">Editar</button>
+                            <button onclick="deleteItem(${item.id})">Eliminar</button>
+                        </td>
+                    `;
+                    tableBody.appendChild(row);
+                });
+            })
+            .catch(error => console.error("Error fetching data:", error));
+    }
+
+    // Función para añadir un nuevo elemento (POST)
+    function addItem(){
+        const name = document.getElementById("postname").value;
+        let url = "/app/rest-service?name=" + name;
+        console.log("The name is: ", name);
+        if (!name) {
+            alert("Por favor ingrese un nombre.");
+            return;
+        }
+
+        fetch (url, {method: 'POST'})
+            .then(() => {
+                document.getElementById("postname").value = ""; // Limpiar el input
+                fetchItems(); // Actualizar la tabla
+            });
+    }
+
+    // Función para editar un elemento (PUT)
+    function editItem(id) {
+        const newName = prompt("Ingrese el nuevo nombre:");
+        let url = "/app/rest-service?id=" + id + "&newName=" + newName;
+        console.log("The id to changes is: ", id, " and the new name is: ", newName);
+        if (!newName) {
+            alert("El nombre no puede estar vacío.");
+            return;
+        }
+
+        fetch(url, {method: "PUT"})
+            .then(fetchItems); // Actualizar la tabla
+    }
+
+    // Función para eliminar un elemento (DELETE)
+    function deleteItem(id) {
+        let url = "/app/rest-service?id=" + id;
+
+        if (confirm("¿Está seguro de que desea eliminar este elemento?")) {
+            fetch(url, { method: "DELETE" })
+                .then(fetchItems); // Actualizar la tabla
+        }
+    }
+</script>
+</body>
+</html>

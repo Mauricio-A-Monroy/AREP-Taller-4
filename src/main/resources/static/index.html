@@ -1,0 +1,30 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Servidor Web con Java</title>
+    <link rel="stylesheet" href="IndexStyles.css">
+</head>
+<body>
+<div class="container">
+    <div class="content">
+        <img src="Pwelcome.jpeg" alt="Bienvenido" class="welcome-image">
+        <div class="welcome-text">
+            <h1>Bienvenido a mi primer servidor web</h1>
+            <p>Hola, bienvenido a mi primer servidor web creado 100% con Java.
+                Para ingresar a la aplicación JavaScript que brinda el servicio REST, por favor da clic en el siguiente botón.</p>
+            <button class="redirect-button" onclick="redirectToApp()">Ir a la Aplicación</button>
+        </div>
+    </div>
+</div>
+
+<script>
+    function redirectToApp() {
+        // Redirige a la aplicación REST (asegúrate de que esté en la ruta correcta)
+        window.location.href = "/webApp/App.html";
+    }
+</script>
+</body>
+</html>
+

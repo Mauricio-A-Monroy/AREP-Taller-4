@@ -7,16 +7,24 @@ import java.net.*;
 import java.io.*;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.BiFunction;
 import java.lang.reflect.Parameter;
 
 public class HttpServer {
     //private static Map<String,BiFunction<HttpRequest, HttpResponse, String>> servicios = new HashMap();
     private static Map<String,ServiceHandler> servicios = new HashMap<>();
-    private static String staticFilePath = "src/main/resources/static";;
+    private static String staticFilePath = "src/main/resources/static";
+    private static volatile boolean running = true;
+    private static ServerSocket serverSocket;
+    private static int idCounter = 0;
+    private static final int THREAD_POOL_SIZE = 10;
+    private static ExecutorService threadPool = Executors.newFixedThreadPool(THREAD_POOL_SIZE);
 
     public static void start() throws IOException, URISyntaxException {
-        ServerSocket serverSocket = null;
         try {
             serverSocket = new ServerSocket(35000);
         } catch (IOException e) {
@@ -24,85 +32,60 @@ public class HttpServer {
             System.exit(1);
         }
 
-        boolean running = true;
-        int idCounter = 0;
+        Runtime.getRuntime().addShutdownHook(new Thread(() -> shutdownServer()));
+
         Map<Integer, String> dataStore = new HashMap<>();
 
         while (running) {
-
-            Socket clientSocket = null;
             try {
+                if (serverSocket.isClosed()) break;
                 System.out.println("Listo para recibir ...");
-                clientSocket = serverSocket.accept();
-            } catch (IOException e) {
-                System.err.println("Accept failed.");
-                System.exit(1);
-            }
-
-            OutputStream outputStream = clientSocket.getOutputStream();
-            BufferedReader in = new BufferedReader(
-                    new InputStreamReader(
-                            clientSocket.getInputStream()));
-            PrintWriter out = new PrintWriter(clientSocket.getOutputStream(), true);
-
-            BufferedOutputStream dataOut = new BufferedOutputStream(clientSocket.getOutputStream());
-
-            String inputLine;
-            HttpResponse response;
-
-            boolean isFirstLine = true;
-            String filePath = "";
-            String HTTPRequest = "";
-            while ((inputLine = in.readLine()) != null) {
-                if (isFirstLine){
-                    HTTPRequest = inputLine.split(" ")[0];
-                    filePath = inputLine.split(" ")[1];
-                    isFirstLine = false;
-                }
-
-                if (!in.ready()) {
+                serverSocket.setSoTimeout(60000);
+                Socket clientSocket = serverSocket.accept();
+                if (!running) {
+                    clientSocket.close();
                     break;
                 }
+                threadPool.execute(new ClientHandler(clientSocket, dataStore, idCounter));
+            } catch (SocketTimeoutException e) {
+                System.out.println("No se recibieron conexiones en 10 segundos. Cerrando servidor...");
+                running = false;
+                shutdownServer();
+            } catch (IOException e) {
+                e.printStackTrace();
             }
-
-            System.out.println("Request: " + HTTPRequest);
-            System.out.println("FilePath: " + filePath);
-
-            URI resourceURI = new URI(filePath);
-            System.out.println("URI: " + resourceURI);
-
-            if (resourceURI.getPath().startsWith("/app/")) {
-                if(resourceURI.getPath().endsWith("rest-service")){
-                    handleRestRequest(HTTPRequest, filePath, resourceURI,out, dataStore, idCounter);
-                    if (HTTPRequest.equals("POST")) {
-                        idCounter += 1;
-                    }
-                    outputStream.close();
-                }
-                else {
-                    HttpRequest req = new HttpRequest(resourceURI.getPath(), resourceURI.getQuery());
-                    response = processRequest(req);
-                    outputStream.write(response.buildResponse().getBytes());
-                    outputStream.flush();
-                }
-            } else {
-                getDefaultResponse(filePath, out, dataOut);
-            }
-
-            outputStream.close();
-            out.close();
-            in.close();
-            clientSocket.close();
         }
-        serverSocket.close();
     }
+
+    private static void shutdownServer() {
+        System.out.println("\nApagando servidor de manera elegante...");
+        running = false;
+        try {
+            if (serverSocket != null && !serverSocket.isClosed()) {
+                serverSocket.close();
+            }
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
+        threadPool.shutdown();
+        try {
+            if (!threadPool.awaitTermination(2, TimeUnit.SECONDS)) {
+                threadPool.shutdownNow();
+            }
+        } catch (InterruptedException ex) {
+            threadPool.shutdownNow();
+            Thread.currentThread().interrupt();
+        }
+        System.out.println("Servidor cerrado.");
+    }
+
     public static void get(String route, Object object, Method method ){
         System.out.println("route: " + route);
         servicios.put("/app" + route, new ServiceHandler(object, method));
     }
 
 
-    private static HttpResponse processRequest(HttpRequest req) {
+    public static HttpResponse processRequest(HttpRequest req) {
         HttpResponse response = new HttpResponse(200, "OK");
         System.out.println("Query: " + req.getQuery());
         System.out.println("Path: " + req.getPath());
@@ -208,7 +191,7 @@ public class HttpServer {
         return fileData;
     }
 
-    private static void handleRestRequest(String method, String filePath, URI resourceURI, PrintWriter out, Map<Integer, String> dataStore, int idCounter) {
+    public static void handleRestRequest(String method, String filePath, URI resourceURI, PrintWriter out, Map<Integer, String> dataStore, int idCounter) {
         String response = "";
         String idParam = filePath.replace("/app/rest-service/", "").trim();
 

@@ -12,6 +12,7 @@ import java.io.InputStreamReader;
 import java.io.StringReader;
 import java.net.HttpURLConnection;
 import java.net.URL;
+import java.util.concurrent.CountDownLatch;
 
 /**
  * Unit test for simple App.
@@ -125,6 +126,49 @@ public class AppTest {
         assertEquals(200, conn.getResponseCode());
         String responseBody = readResponse(conn);
         assertTrue(responseBody.contains("\"response\":\"" + Math.E + "\""));
+    }
+
+    @Test
+    void testRequestCounter() throws Exception {
+        final int requestCount = 10;
+        CountDownLatch latch = new CountDownLatch(requestCount);
+
+        for (int i = 0; i < requestCount; i++) {
+            new Thread(() -> {
+                try {
+                    sendRequest();
+                } catch (Exception e) {
+                    e.printStackTrace();
+                } finally {
+                    latch.countDown();
+                }
+            }).start();
+        }
+
+        latch.await();
+
+        int finalCount = getRequestCount();
+        assertEquals(requestCount + 1, finalCount);
+    }
+
+    private void sendRequest() throws Exception {
+        URL url = new URL("http://localhost:35000/app/count");
+        HttpURLConnection conn = (HttpURLConnection) url.openConnection();
+        conn.setRequestMethod("GET");
+        conn.getResponseCode();
+        conn.disconnect();
+    }
+
+    private int getRequestCount() throws Exception {
+        URL url = new URL("http://localhost:35000/app/count");
+        HttpURLConnection conn = (HttpURLConnection) url.openConnection();
+        conn.setRequestMethod("GET");
+
+        assertEquals(200, conn.getResponseCode());
+        String responseBody = readResponse(conn);
+        conn.disconnect();
+
+        return Integer.parseInt(responseBody.replaceAll("[^0-9]", ""));
     }
 
     private String readResponse(HttpURLConnection conn) throws Exception {

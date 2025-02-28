@@ -26,7 +26,14 @@ public class MicroServer {
         List<String> classNames = getClassesInPackage("edu.escuelaing.arep.microspring.controller");
         loadComponents(classNames.toArray(new String[0]));
 
-        staticFiles("src/main/resources/static");
+        System.out.println("variable de entorno" + System.getenv("DOCKER_ENV"));
+
+        if (System.getenv("DOCKER_ENV") != null) {
+            staticFiles("/usrapp/bin/resources/static");
+            System.out.println("Imagen creada en docker");
+        } else {
+            staticFiles("src/main/resources/static");
+        }
         start();
 
     }

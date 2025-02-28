@@ -145,8 +145,6 @@ Este comando funciona en Windows
     docker push tu-usuario/nombre-repositorio latest
 ```
 
----
-
 ## Despliegue en AWS EC2 con Docker
 
 ### 1. Creación de la instancia EC2
@@ -160,8 +158,8 @@ Este comando funciona en Windows
 Desde la consola, se navegó hasta la ubicación del archivo `.pem` y se ejecutaron los siguientes comandos:
 
 ```sh
-chmod 400 "taller4Key.pem"
-ssh -i "taller4Key.pem" ec2-user@ec2-54-173-199-107.compute-1.amazonaws.com
+chmod 400 "clave.pem"
+ssh -i "clave.pem" usuario@direccion-ec2.compute.amazonaws.com
 ```
 
 ### 3. Instalación y configuración de Docker en EC2
@@ -183,12 +181,13 @@ Luego, se volvió a conectar con SSH.
 Una vez dentro de la instancia, se ejecutó el siguiente comando para correr el contenedor:
 
 ```sh
-docker run -d -p 42000:35000 --name firstdockerimageaws -e DOCKER_ENV=true mauriciomonroy/taller4arep:latest
+docker run -d -p 42000:35000 --name firstdockercontainer -e DOCKER_ENV=true imagen-docker:latest
 ```
 
-Con esto, el servicio quedó desplegado en AWS EC2 utilizando Docker.
+Con esto, el servicio quedó desplegado en AWS EC2 utilizando Docker y se pueden probar los endpoints listados anteriormente.
 
----
+Prueba del despliegue: https://www.youtube.com/watch?v=qpNjInHXPzc
+
 
 ## Conclusión
 Has desplegado exitosamente tu aplicación en AWS usando Docker. Para actualizaciones, simplemente sube una nueva versión a DockerHub y reinicia el contenedor en AWS.
